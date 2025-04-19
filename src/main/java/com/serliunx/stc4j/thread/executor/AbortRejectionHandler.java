@@ -15,8 +15,20 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public final class AbortRejectionHandler implements TaskRejectionHandler {
 
+    /**
+     * 单例实现
+     */
+    private static final AbortRejectionHandler INSTANCE = new AbortRejectionHandler();
+
+    /**
+     * 获取实例
+     */
+    public static AbortRejectionHandler instance() {
+        return INSTANCE;
+    }
+
     @Override
     public void reject(Runnable task, ReusableThreadExecutor rte) {
-        throw new RejectedExecutionException(task.toString());
+        throw new RejectedExecutionException(task.toString() + " in " + rte.toString());
     }
 }

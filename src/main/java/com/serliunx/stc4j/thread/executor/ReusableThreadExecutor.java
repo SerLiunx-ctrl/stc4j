@@ -1,7 +1,6 @@
 package com.serliunx.stc4j.thread.executor;
 
-import java.util.Collection;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 可重复使用的单线程的线程池
@@ -19,10 +18,17 @@ public interface ReusableThreadExecutor extends ExecutorService {
      */
     Thread getThread();
 
-    @Override
-    <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException;
+    /**
+     * 获取线程池状态
+     *
+     * @return  状态
+     */
+    int getStatus();
 
-    @Override
-    <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException,
-            ExecutionException, TimeoutException;
+    /**
+     * 获取当前线程池已执行的任务数量
+     *
+     * @return  已执行的任务数量
+     */
+    long getTasksExecuted();
 }

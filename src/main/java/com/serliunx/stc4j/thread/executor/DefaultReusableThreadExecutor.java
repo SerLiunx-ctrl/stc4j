@@ -1,11 +1,12 @@
 package com.serliunx.stc4j.thread.executor;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import com.serliunx.stc4j.thread.support.DefaultIndexCountingThreadFactory;
+
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -42,6 +43,10 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
      * 线程池状态
      */
     private final AtomicInteger status = new AtomicInteger(STATUS_NEW);
+    /**
+     * 线程池锁
+     */
+    private final Lock mainLock = new ReentrantLock();
 
     /**
      * 状态：初始化
@@ -87,6 +92,11 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
         start();
     }
 
+    public DefaultReusableThreadExecutor(BlockingQueue<Runnable> queue) {
+        this(queue, new DefaultIndexCountingThreadFactory("single-thread-pool-executor", 1),
+                AbortRejectionHandler.instance());
+    }
+
     /**
      * 执行任务的线程
      */
@@ -98,17 +108,39 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
     }
 
     @Override
+    public int getStatus() {
+        return status.get();
+    }
+
+    @Override
+    public long getTasksExecuted() {
+        return tasksExecuted;
+    }
+
+    @Override
     public void shutdown() {
+        if (getStatus() >= STATUS_SHUTDOWN)
+            return;
         status.set(STATUS_SHUTDOWN);
     }
 
     @Override
     public List<Runnable> shutdownNow() {
-        thread.interrupt();
-
-        List<Runnable> tasks = new ArrayList<>();
-        queue.drainTo(tasks);
-        return tasks;
+        if (isTerminated()) {
+            return Collections.emptyList();
+        }
+        try {
+            mainLock.lock();
+            if (isTerminated()) {
+                return Collections.emptyList();
+            }
+            thread.interrupt();
+            List<Runnable> tasks = new ArrayList<>();
+            queue.drainTo(tasks);
+            return tasks;
+        } finally {
+            mainLock.unlock();
+        }
     }
 
     @Override
@@ -182,7 +214,7 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
 
         final long nanos = unit.toNanos(timeout);
         final long deadline = System.nanoTime() + nanos;
-        ArrayList<Future<T>> futures = new ArrayList<>(tasks.size());
+        List<Future<T>> futures = new ArrayList<>(tasks.size());
         int j = 0;
         timedOut: try {
             for (Callable<T> t : tasks) {
@@ -228,7 +260,7 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
         try {
             return doInvokeAny(tasks, false, 0);
         } catch (TimeoutException cannotHappen) {
-            return null;
+            throw new RuntimeException(cannotHappen);
         }
     }
 
@@ -246,6 +278,17 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
         if (isShutdown() ||
                 !queue.offer(command)) {
             rejectionHandler.reject(command, this);
+        }
+    }
+
+    @Override
+    public String toString() {
+        try {
+            mainLock.lock();
+			return "[DefaultReusableThreadExecutor, queueSize=" + queue.size() +
+                    ", tasksExecuted=" + tasksExecuted + ", status=" + status.get() + "]";
+        } finally {
+            mainLock.unlock();
         }
     }
 
@@ -273,40 +316,33 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
             return;
         }
         Runnable mainLogic = () -> {
-            // 是否由具体的任务中断？ 如果是的话，需要重启任务线程
             boolean completedAbruptly = false;
             try {
                 Runnable task;
-                /*
-                 * 1.当task为空时, 说明任务线程被中断了, 此时线程池可以结束了；
-                 *   因为这是单线程的线程池, 任务线程结束意味着线程池结束。
-                 * 2.线程池终止时不再执行任务
-                 */
                 status.set(STATUS_IDLE);
                 while ((task = getTask()) != null &&
                         (!isTerminated())) {
-                    beforeExecute(thread, task);
                     try {
                         status.set(STATUS_RUNNING);
+                        beforeExecute(thread, task);
                         task.run();
                         afterExecute(task, null);
                     } catch (Throwable t) {
-                        /*
-                         * 由于是单线程线程池，所以内部线程被中断也意味着线程池发出了结束信号
-                         * 此时不需要重启任务线程!!!
-                         */
-                        if (!isCausedByInterruptedException(t)) {
-                            completedAbruptly = true;
-                        }
+                        completedAbruptly = true;
                         afterExecute(task, t);
                         throw t;
                     } finally {
-                        status.set(STATUS_IDLE);
+                        if (getStatus() < STATUS_SHUTDOWN) {
+                            status.set(STATUS_IDLE);
+                        }
                         tasksExecuted++;
+                    }
+
+                    if (isShutdown() && queue.isEmpty()) {
+                        break;
                     }
                 }
             } finally {
-                // 异常中断需要重启任务线程
                 if (completedAbruptly) {
                     start();
                 } else {
@@ -318,15 +354,6 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
         // 运行线程
         thread = threadFactory.newThread(mainLogic);
         thread.start();
-    }
-
-    /**
-     * 校验指定异常是否由中断异常导致的
-     *
-     * @param t 异常
-     */
-    private boolean isCausedByInterruptedException(Throwable t) {
-        return t != null && t.getCause() != null && t.getCause() instanceof InterruptedException;
     }
 
     /**

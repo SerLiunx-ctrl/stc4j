@@ -13,6 +13,18 @@ package com.serliunx.stc4j.thread.executor;
  */
 public final class DiscardRejectionHandler implements TaskRejectionHandler {
 
+    /**
+     * 单例实现
+     */
+    private static final DiscardRejectionHandler INSTANCE = new DiscardRejectionHandler();
+
+    /**
+     * 获取实例
+     */
+    public static DiscardRejectionHandler instance() {
+        return INSTANCE;
+    }
+
     @Override
     public void reject(Runnable task, ReusableThreadExecutor rte) {
         // 什么都不做

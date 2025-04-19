@@ -3,12 +3,15 @@ package com.serliunx.stc4j.thread;
 import com.serliunx.stc4j.thread.executor.DefaultReusableThreadExecutor;
 import com.serliunx.stc4j.thread.executor.DiscardRejectionHandler;
 import com.serliunx.stc4j.thread.executor.ReusableThreadExecutor;
+import com.serliunx.stc4j.thread.support.CountableRejectedExecutionHandler;
+import com.serliunx.stc4j.thread.support.DefaultCountableRejectedExecutionHandler;
+import com.serliunx.stc4j.thread.support.DefaultIndexCountingThreadFactory;
+import com.serliunx.stc4j.thread.support.IndexCountingThreadFactory;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -56,11 +59,14 @@ public class ThreadToolsTest {
     @Test
     public void testReusableThreadExecutor() throws Exception {
         ReusableThreadExecutor rte = new DefaultReusableThreadExecutor(new ArrayBlockingQueue<>(16),
-                Thread::new, new DiscardRejectionHandler());
+                new DefaultIndexCountingThreadFactory("task-thread-%s", 1), DiscardRejectionHandler.instance());
 
         rte.execute(() -> {
-            throw new RuntimeException();
+            log.info("hello~");
         });
+
+        TimeUnit.SECONDS.sleep(2);
+        System.out.println(rte);
 
         TimeUnit.SECONDS.sleep(60);
     }

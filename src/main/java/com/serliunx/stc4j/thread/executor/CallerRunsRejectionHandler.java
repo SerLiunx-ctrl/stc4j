@@ -13,6 +13,18 @@ package com.serliunx.stc4j.thread.executor;
  */
 public final class CallerRunsRejectionHandler implements TaskRejectionHandler {
 
+    /**
+     * 单例实现
+     */
+    private static final CallerRunsRejectionHandler INSTANCE = new CallerRunsRejectionHandler();
+
+    /**
+     * 获取实例
+     */
+    public static CallerRunsRejectionHandler instance() {
+        return INSTANCE;
+    }
+
     @Override
     public void reject(Runnable task, ReusableThreadExecutor rte) {
         task.run();
