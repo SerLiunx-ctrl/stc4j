@@ -1,5 +1,9 @@
 package com.serliunx.stc4j.thread.executor;
 
+import com.serliunx.stc4j.thread.support.MergedRejectedExecutionHandler;
+
+import java.util.concurrent.ExecutorService;
+
 /**
  * 拒绝策略之：调用者运行
  *
@@ -11,7 +15,7 @@ package com.serliunx.stc4j.thread.executor;
  * @version 1.0.0
  * @since 2025/4/18
  */
-public final class CallerRunsRejectionHandler implements TaskRejectionHandler {
+public final class CallerRunsRejectionHandler implements MergedRejectedExecutionHandler {
 
     /**
      * 单例实现
@@ -26,7 +30,7 @@ public final class CallerRunsRejectionHandler implements TaskRejectionHandler {
     }
 
     @Override
-    public void reject(Runnable task, ReusableThreadExecutor rte) {
-        task.run();
+    public void mergedRejectedExecution(Runnable r, ExecutorService es) {
+        r.run();
     }
 }
