@@ -1,35 +1,20 @@
 package com.serliunx.stc4j.util;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 键值对定义; 简易的键值对实现, 避免使用复杂的Map.
+ * 键值对定义
  *
- * <p>
- *     对左右两边的值没有强制要求, 可以都为空; 适用于需要表达多个映射关系的场景中.
- * </p>
- *
- * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
- * @version 1.0.0
- * @since 2025/8/27
+ * @author <a href="mailto:root@serliunx.com">SerLiunx</a>
+ * @since 2025/8/30
+ * @param <L> 左值
+ * @param <R> 右值
  */
 public interface Pair<L, R> {
-
-    /**
-     * 设置左边的值
-     *
-     * @param left  左值
-     */
-    void sl(L left);
-
-    /**
-     * 设置右边的值
-     *
-     * @param right 右值
-     */
-    void sr(R right);
 
     /**
      * 获取左值
@@ -46,34 +31,61 @@ public interface Pair<L, R> {
     R r();
 
     /**
-     * 快速构建一个键值对
+     * 设置左值
      *
      * @param left  左值
+     */
+    void sl(L left);
+
+    /**
+     * 设置右值
+     *
      * @param right 右值
-     * @return  新的键值对
+     */
+    void sr(R right);
+
+    /**
+     * 转换为Map, 左值为Key, 右值为Value
+     *
+     * @return  转换后的Map, 默认为HashMap
+     */
+    Map<L, R> map();
+
+    /**
+     * 快速创建一个键值对
+     *
+     * @param l     左值
+     * @param r     右值
+     * @return      键值对
      * @param <L>   左值类型
      * @param <R>   右值类型
      */
-    static <L, R> Pair<L, R> of(L left, R right) {
-        return new DefaultImpl<>(left, right);
+    static <L, R> Pair<L, R> of(L l, R r) {
+        return new DefaultImpl<>(l, r);
     }
 
     /**
-     * 将Map中的键值对提取为普通键值对列表
+     * 将Map中的键值对提取出来
      *
-     * @param source    原Map
-     * @return          键值对列表
-     * @param <L>       左值类型
-     * @param <R>       右值类型
+     * @param map   源Map
+     * @return      键值对列表
+     * @param <L>   左值类型
+     * @param <R>   右值类型
      */
-    static <L, R> List<Pair<L, R>> extract(Map<L, R> source) {
-        return source.entrySet()
+    static <L, R> List<Pair<L, R>> extract(Map<L, R> map) {
+        return map.entrySet()
                 .stream()
-                .map(entry -> new DefaultImpl<>(entry.getKey(), entry.getValue()))
+                .map(e -> new DefaultImpl<>(e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
     }
 
-    class DefaultImpl<L, R> implements Pair<L, R> {
+    /**
+     * 键值对默认实现
+     *
+     * @param <L>   左值类型
+     * @param <R>   右值类型
+     */
+    class DefaultImpl<L, R>  implements Pair<L, R> {
 
         private L left;
         private R right;
@@ -81,6 +93,18 @@ public interface Pair<L, R> {
         public DefaultImpl(L left, R right) {
             this.left = left;
             this.right = right;
+        }
+
+        public DefaultImpl() {}
+
+        @Override
+        public L l() {
+            return left;
+        }
+
+        @Override
+        public R r() {
+            return right;
         }
 
         @Override
@@ -94,13 +118,28 @@ public interface Pair<L, R> {
         }
 
         @Override
-        public L l() {
-            return left;
+        public Map<L, R> map() {
+            HashMap<L, R> map = new HashMap<>();
+            map.put(this.left, this.right);
+            return map;
         }
 
         @Override
-        public R r() {
-            return right;
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass())
+                return false;
+            DefaultImpl<?, ?> np = (DefaultImpl<?, ?>) o;
+            return Objects.equals(left, np.left) && Objects.equals(right, np.right);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(left, right);
+        }
+
+        @Override
+        public String toString() {
+            return left.toString() + "="  + right.toString();
         }
     }
 }
