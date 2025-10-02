@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -49,7 +50,23 @@ public interface Pair<L, R> {
      *
      * @return  转换后的Map, 默认为HashMap
      */
-    Map<L, R> map();
+    default Map<L, R> map() {
+        return map(HashMap::new);
+    }
+
+    /**
+     * 转换为指定类型的Map, 左值为Key, 右值为Value
+     *
+     * @param supplier  Map
+     * @return  转换后的Map
+     */
+    default Map<L, R> map(Supplier<Map<L, R>> supplier) {
+        L left = l();
+        R right = r();
+        Map<L, R> map = supplier.get();
+        map.put(left, right);
+        return map;
+    }
 
     /**
      * 快速创建一个键值对
@@ -115,13 +132,6 @@ public interface Pair<L, R> {
         @Override
         public void sr(R right) {
             this.right = right;
-        }
-
-        @Override
-        public Map<L, R> map() {
-            HashMap<L, R> map = new HashMap<>();
-            map.put(this.left, this.right);
-            return map;
         }
 
         @Override
