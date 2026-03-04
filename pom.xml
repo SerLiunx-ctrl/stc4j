@@ -6,7 +6,7 @@
 
     <groupId>com.serliunx</groupId>
     <artifactId>stc4j</artifactId>
-    <version>1.0.0-alpha</version>
+    <version>1.0.1</version>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
