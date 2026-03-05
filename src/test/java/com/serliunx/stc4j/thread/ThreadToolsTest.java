@@ -68,6 +68,6 @@ public class ThreadToolsTest {
         TimeUnit.SECONDS.sleep(2);
         System.out.println(rte);
 
-        TimeUnit.SECONDS.sleep(60);
+        TimeUnit.SECONDS.sleep(3);
     }
 }
