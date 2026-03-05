@@ -1,10 +1,14 @@
 package com.serliunx.stc4j.util;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.assertThrows;
 
 /**
  * 键值对测试
@@ -28,5 +32,11 @@ public class PairTest {
         Pair<String, String> pair2 = Pair.of("key1", "value1");
 
         System.out.println(pair.equals(pair2));
+    }
+
+    @Test
+    public void testImPair() {
+        Pair<String, String> immutable = Pair.ofImmutable("key1", "value1");
+        assertThrows(UnsupportedOperationException.class, () -> immutable.setLeft("1"));
     }
 }

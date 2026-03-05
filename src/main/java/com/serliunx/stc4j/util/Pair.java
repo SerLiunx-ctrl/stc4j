@@ -22,28 +22,28 @@ public interface Pair<L, R> {
      *
      * @return  左值
      */
-    L l();
+    L left();
 
     /**
      * 获取右值
      *
      * @return  右值
      */
-    R r();
+    R right();
 
     /**
      * 设置左值
      *
      * @param left  左值
      */
-    void sl(L left);
+    void setLeft(L left);
 
     /**
      * 设置右值
      *
      * @param right 右值
      */
-    void sr(R right);
+    void setRight(R right);
 
     /**
      * 转换为Map, 左值为Key, 右值为Value
@@ -61,8 +61,8 @@ public interface Pair<L, R> {
      * @return  转换后的Map
      */
     default Map<L, R> map(Supplier<Map<L, R>> supplier) {
-        L left = l();
-        R right = r();
+        L left = left();
+        R right = right();
         Map<L, R> map = supplier.get();
         map.put(left, right);
         return map;
@@ -82,6 +82,21 @@ public interface Pair<L, R> {
     }
 
     /**
+     * 快速创建一个不可变的键值对
+     * <p>
+     * 该实现无法修改创建好的键值对, 修改类方法会抛出{@link UnsupportedOperationException}
+     *
+     * @param l     左值
+     * @param r     右值
+     * @return      键值对
+     * @param <L>   左值类型
+     * @param <R>   右值类型
+     */
+    static <L, R> Pair<L, R> ofImmutable(L l, R r) {
+        return new ImmutablePair<>(l, r);
+    }
+
+    /**
      * 将Map中的键值对提取出来
      *
      * @param map   源Map
@@ -94,6 +109,29 @@ public interface Pair<L, R> {
                 .stream()
                 .map(e -> new DefaultImpl<>(e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 不可变的键值对默认实现
+     *
+     * @param <L>
+     * @param <R>
+     */
+    class ImmutablePair<L, R> extends DefaultImpl<L, R> {
+
+        public ImmutablePair(L left, R right) {
+            super(left, right);
+        }
+
+        @Override
+        public void setLeft(L left) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setRight(R right) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /**
@@ -115,31 +153,34 @@ public interface Pair<L, R> {
         public DefaultImpl() {}
 
         @Override
-        public L l() {
+        public L left() {
             return left;
         }
 
         @Override
-        public R r() {
+        public R right() {
             return right;
         }
 
         @Override
-        public void sl(L left) {
+        public void setLeft(L left) {
             this.left = left;
         }
 
         @Override
-        public void sr(R right) {
+        public void setRight(R right) {
             this.right = right;
         }
 
         @Override
         public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass())
+            if (!(o instanceof Pair)) {
                 return false;
-            DefaultImpl<?, ?> np = (DefaultImpl<?, ?>) o;
-            return Objects.equals(left, np.left) && Objects.equals(right, np.right);
+            }
+
+            Pair<?, ?> np = (Pair<?, ?>) o;
+            return Objects.equals(left, np.left()) &&
+                    Objects.equals(right, np.right());
         }
 
         @Override
