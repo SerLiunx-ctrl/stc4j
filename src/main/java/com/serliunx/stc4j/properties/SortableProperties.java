@@ -1,4 +1,7 @@
-package com.serliunx.stc4j.util;
+package com.serliunx.stc4j.properties;
+
+import com.serliunx.stc4j.util.Assert;
+import com.serliunx.stc4j.util.IteratorToEnumerationAdapter;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -11,12 +14,14 @@ import java.util.stream.Collectors;
 
 /**
  * 配置管理: 按照顺序排列、线程不安全
+ * <p>
+ * 默认情况下使用UTF-8编码写入、读取配置文件及配置项的注释
  *
  * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
  * @version 1.0.0
  * @since 2025/8/26
  */
-public final class SortableProperties extends Properties {
+public class SortableProperties extends Properties implements ValueBasedProperties {
 
     /**
      * 默认的编码格式
@@ -27,6 +32,10 @@ public final class SortableProperties extends Properties {
      * 配置项实际的存储位置
      */
     private final LinkedHashMap<Object, Object> valueMap = new LinkedHashMap<>(64);
+    /**
+     * 注释行
+     */
+    private final Map<String, List<String>> commentLine = new LinkedHashMap<>(64);
 
     @Override
     public int size() {
@@ -198,10 +207,13 @@ public final class SortableProperties extends Properties {
     public void load(Reader reader) throws IOException {
         BufferedReader br = new BufferedReader(reader);
         String line;
-        while ((line = br.readLine()) != null &&
-                !line.isEmpty()) {
-            if (line.startsWith("#"))
+        List<String> commentLines = new ArrayList<>();
+        while ((line = br.readLine()) != null) {
+            if (line.startsWith("#") || line.isEmpty()) {
+                commentLines.add(line);
                 continue;
+            }
+
             String[] kv = line.split("=");
             if (kv.length < 1)
                 continue;
@@ -215,6 +227,12 @@ public final class SortableProperties extends Properties {
             }
             String value = valBuilder.toString();
             put(key, value);
+
+            if (!commentLines.isEmpty()) {
+                System.out.println(key + "注释:" + Arrays.toString(commentLines.toArray()));
+                setCommentLines(key, commentLines);
+                commentLines.clear();
+            }
         }
     }
 
@@ -228,19 +246,34 @@ public final class SortableProperties extends Properties {
     public void save(OutputStream out, String comments) {
         try {
             this.store(out, comments);
-        } catch (IOException ignored) {
-        }
+        } catch (IOException ignored) {}
     }
 
     @Override
     public void store(Writer writer, String comments) throws IOException {
         BufferedWriter bw = new BufferedWriter(writer);
-        bw.write("#" + new Date());
+        String firstLine = comments == null || comments.isEmpty() ? ("#" + new Date()) : comments;
+        bw.write(firstLine);
         bw.newLine();
         synchronized (this) {
             for (Enumeration<?> e = keys(); e.hasMoreElements(); ) {
                 String key = e.nextElement().toString();
                 String val = get(key).toString();
+                List<String> commentLines = getCommentLines(key);
+                if (commentLines != null &&
+                        !commentLines.isEmpty()) {
+                    for (int i = 0; i < commentLines.size(); i++) {
+                        try {
+                            bw.write(commentLines.get(i));
+                            if (i != commentLines.size() - 1) {
+                                bw.newLine();
+                            }
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    }
+                    bw.newLine();
+                }
                 bw.write(key + "=" + val);
                 bw.newLine();
             }
@@ -251,21 +284,6 @@ public final class SortableProperties extends Properties {
     @Override
     public void store(OutputStream out, String comments) throws IOException {
         this.store(new OutputStreamWriter(out), comments);
-    }
-
-    @Override
-    public void loadFromXML(InputStream in) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void storeToXML(OutputStream os, String comment) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void storeToXML(OutputStream os, String comment, String encoding) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -322,11 +340,155 @@ public final class SortableProperties extends Properties {
                 });
     }
 
+    // === 增强部分
+
+    /**
+     * 在指定的配置键上方增加注释, 可添加多行
+     *
+     * @param key 配置键
+     * @param comments 注释行数组
+     * @throws IllegalArgumentException 配置键不存在时抛出.
+     */
+    public void setCommentLines(Object key, String...comments) {
+        setCommentLines(key, Arrays.asList(comments));
+    }
+
+    /**
+     * 在指定的配置键上方增加注释, 可添加多行
+     *
+     * @param key 配置键
+     * @param comments 注释行列表
+     * @throws IllegalArgumentException 配置键不存在时抛出.
+     */
+    public void setCommentLines(Object key, List<String> comments) {
+        Assert.notNull(key, "key must not be null");
+        if (!containsKey(key)) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        commentLine.put(key.toString(), new ArrayList<>(comments));
+    }
+
+    /**
+     * 获取指定配置键的注释行
+     *
+     * @param key 配置键
+     * @return 注释行
+     */
+    public List<String> getCommentLines(Object key) {
+        Assert.notNull(key, "key must not be null");
+        if (!containsKey(key)) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return commentLine.get(key.toString());
+    }
+
+    /**
+     * 设置编码
+     *
+     * @param charset 编码
+     */
     public void setCharset(Charset charset) {
         this.charset = charset;
     }
 
+    /**
+     * 获取编码
+     *
+     * @return 编码
+     */
     public Charset getCharset() {
         return charset;
+    }
+
+    // ValueBasedProperties impl
+
+    @Override
+    public int getInteger(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return Integer.parseInt(property);
+    }
+
+    @Override
+    public int getInteger(String key, int defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return Integer.parseInt(property);
+    }
+
+    @Override
+    public long getLong(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return Long.parseLong(property);
+    }
+
+    @Override
+    public long getLong(String key, long defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return Long.parseLong(property);
+    }
+
+    @Override
+    public double getDouble(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return Double.parseDouble(property);
+    }
+
+    @Override
+    public double getDouble(String key, double defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return Double.parseDouble(property);
+    }
+
+    @Override
+    public float getFloat(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return Float.parseFloat(property);
+    }
+
+    @Override
+    public float getFloat(String key, float defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return Float.parseFloat(property);
+    }
+
+    @Override
+    public boolean getBoolean(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return Boolean.parseBoolean(property);
+    }
+
+    @Override
+    public boolean getBoolean(String key, boolean defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(property);
     }
 }
