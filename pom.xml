@@ -6,7 +6,7 @@
 
     <groupId>com.serliunx</groupId>
     <artifactId>stc4j</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 
     <name>stc4j</name>
     <description>a simple java tools collection.</description>
