@@ -1,5 +1,12 @@
 package com.serliunx.stc4j.properties;
 
+import com.serliunx.stc4j.util.Pair;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * 基于值类型读取配置项的接口。
  * <p>
@@ -11,6 +18,24 @@ package com.serliunx.stc4j.properties;
  * @since 2026/3/6
  */
 public interface ValueBasedProperties {
+
+    /**
+     * 获取指定配置项并转换为 {@link String}
+     *
+     * @param key 配置键
+     * @return 值
+     * @throws IllegalArgumentException 当配置项不存在时可能抛出
+     */
+    String getString(String key);
+
+    /**
+     * 获取指定配置项并转换为 {@link String}, 当配置项不存在时返回默认值.
+     *
+     * @param key 配置键
+     * @param defaultValue 默认值
+     * @return 值
+     */
+    String getString(String key, String defaultValue);
 
     /**
      * 获取指定配置项并转换为 {@code int}。
@@ -109,4 +134,36 @@ public interface ValueBasedProperties {
      * @return 配置键对应的布尔值；若配置项不存在，则返回 {@code defaultValue}
      */
     boolean getBoolean(String key, boolean defaultValue);
+
+    /**
+     * 合并另一个配置中的配置项
+     *
+     * @param other 另一个配置
+     * @return 当前配置项
+     */
+    ValueBasedProperties merge(ValueBasedProperties other);
+
+    /**
+     * 获取所有配置项
+     *
+     * @return 配置键值对列表
+     */
+    List<Pair<String, String>> allProperties();
+
+    /**
+     * 将配置项映射到Map中
+     *
+     * @return 配置项Map
+     */
+    default Map<String, String> mappedProperties() {
+        List<Pair<String, String>> pairs = allProperties();
+        if (pairs == null || pairs.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> result = new HashMap<>();
+        for (Pair<String, String> pair : pairs) {
+            result.put(pair.left(), pair.right());
+        }
+        return result;
+    }
 }

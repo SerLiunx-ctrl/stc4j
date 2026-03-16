@@ -2,6 +2,7 @@ package com.serliunx.stc4j.properties;
 
 import com.serliunx.stc4j.util.Assert;
 import com.serliunx.stc4j.util.IteratorToEnumerationAdapter;
+import com.serliunx.stc4j.util.Pair;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -229,7 +230,6 @@ public class SortableProperties extends Properties implements ValueBasedProperti
             put(key, value);
 
             if (!commentLines.isEmpty()) {
-                System.out.println(key + "注释:" + Arrays.toString(commentLines.toArray()));
                 setCommentLines(key, commentLines);
                 commentLines.clear();
             }
@@ -283,7 +283,7 @@ public class SortableProperties extends Properties implements ValueBasedProperti
 
     @Override
     public void store(OutputStream out, String comments) throws IOException {
-        this.store(new OutputStreamWriter(out), comments);
+        this.store(new OutputStreamWriter(out, charset), comments);
     }
 
     @Override
@@ -402,6 +402,25 @@ public class SortableProperties extends Properties implements ValueBasedProperti
 
     // ValueBasedProperties impl
 
+
+    @Override
+    public String getString(String key) {
+        String property = getProperty(key);
+        if (property == null) {
+            throw new IllegalArgumentException(key + " does not exist");
+        }
+        return property;
+    }
+
+    @Override
+    public String getString(String key, String defaultValue) {
+        String property = getProperty(key);
+        if (property == null) {
+            return defaultValue;
+        }
+        return property;
+    }
+
     @Override
     public int getInteger(String key) {
         String property = getProperty(key);
@@ -490,5 +509,28 @@ public class SortableProperties extends Properties implements ValueBasedProperti
             return defaultValue;
         }
         return Boolean.parseBoolean(property);
+    }
+
+    @Override
+    public SortableProperties merge(ValueBasedProperties other) {
+        List<Pair<String, String>> ps = other.allProperties();
+        if (ps != null && !ps.isEmpty()) {
+            ps.forEach(p -> setProperty(p.left(), p.right()));
+        }
+        return this;
+    }
+
+    @Override
+    public List<Pair<String, String>> allProperties() {
+        return  valueMap.entrySet()
+                .stream()
+                .map(e -> {
+                    Object key = e.getKey();
+                    if (key == null) {
+                        throw new NullPointerException("key is null!");
+                    }
+                    return Pair.of(key.toString(), e.getValue() == null ? "" : e.getValue().toString());
+                })
+                .collect(Collectors.toList());
     }
 }
