@@ -1,8 +1,6 @@
 package com.serliunx.stc4j.util;
 
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,5 +36,12 @@ public class PairTest {
     public void testImPair() {
         Pair<String, String> immutable = Pair.ofImmutable("key1", "value1");
         assertThrows(UnsupportedOperationException.class, () -> immutable.setLeft("1"));
+    }
+
+    @Test
+    public void testPairStream() {
+        Pair.ofImmutable("key1", "value1")
+                .stream()
+                .forEach(System.out::println);
     }
 }

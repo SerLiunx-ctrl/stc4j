@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 键值对定义
@@ -44,6 +45,17 @@ public interface Pair<L, R> {
      * @param right 右值
      */
     void setRight(R right);
+
+    /**
+     * 流式操作键值对
+     *
+     * @return 流
+     */
+    default Stream<Pair<L, R>> stream() {
+        return Stream.<Pair<L, R>>builder()
+                .add(this)
+                .build();
+    }
 
     /**
      * 转换为Map, 左值为Key, 右值为Value
@@ -105,9 +117,30 @@ public interface Pair<L, R> {
      * @param <R>   右值类型
      */
     static <L, R> List<Pair<L, R>> extract(Map<L, R> map) {
+        return extract(map, false);
+    }
+
+    /**
+     * 将Map中的键值对提取出来
+     * <p>
+     * 指定了不可变的键值对时, 无法修改键值对{@link ImmutablePair}
+     *
+     * @param map   源Map
+     * @param immutable 是否不可变
+     * @return      键值对列表
+     * @param <L>   左值类型
+     * @param <R>   右值类型
+     */
+    static <L, R> List<Pair<L, R>> extract(Map<L, R> map, boolean immutable) {
         return map.entrySet()
                 .stream()
-                .map(e -> new DefaultImpl<>(e.getKey(), e.getValue()))
+                .map(e -> {
+                    if (immutable) {
+                        return ofImmutable(e.getKey(), e.getValue());
+                    } else {
+                        return of(e.getKey(), e.getValue());
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
@@ -117,7 +150,7 @@ public interface Pair<L, R> {
      * @param <L>
      * @param <R>
      */
-    class ImmutablePair<L, R> extends DefaultImpl<L, R> {
+    final class ImmutablePair<L, R> extends DefaultImpl<L, R> {
 
         public ImmutablePair(L left, R right) {
             super(left, right);
@@ -149,8 +182,6 @@ public interface Pair<L, R> {
             this.left = left;
             this.right = right;
         }
-
-        public DefaultImpl() {}
 
         @Override
         public L left() {

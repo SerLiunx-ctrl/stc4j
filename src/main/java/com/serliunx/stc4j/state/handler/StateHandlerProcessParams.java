@@ -1,0 +1,49 @@
+package com.serliunx.stc4j.state.handler;
+
+/**
+ * 状态处理器入参
+ * <p>
+ * 用于状态机处理事件
+ *
+ * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
+ * @version 1.0.4
+ * @since 2026/3/16
+ */
+public final class StateHandlerProcessParams<S> {
+
+	/**
+	 * 源状态
+	 */
+	private final S from;
+	/**
+	 * 目标状态
+	 */
+	private final S to;
+	/**
+	 * 附加参数
+	 */
+	private final Object attach;
+
+	/**
+	 * @param from 						原状态
+	 * @param to 						目标状态
+	 * @param attach 					附加参数
+	 */
+	public StateHandlerProcessParams(S from, S to, Object attach) {
+		this.from = from;
+		this.to = to;
+		this.attach = attach;
+	}
+
+	public S getFrom() {
+		return from;
+	}
+
+	public S getTo() {
+		return to;
+	}
+
+	public Object getAttach() {
+		return attach;
+	}
+}
