@@ -39,6 +39,13 @@ public interface StateManager<S> {
 	int size();
 
 	/**
+	 * 反转内置的状态列表
+	 * <p>
+	 * A-B-C-D-E -> E-D-C-B-A
+	 */
+	void reserve();
+
+	/**
 	 * 是否可切换
 	 * <p>
 	 * 默认情况下, 状态集合中的状态数量大于1时就可以切换。部分实现在特定情况下可能不允许切换,

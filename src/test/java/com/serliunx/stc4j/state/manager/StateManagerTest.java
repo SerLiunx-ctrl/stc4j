@@ -20,6 +20,36 @@ import static org.junit.Assert.assertTrue;
 public class StateManagerTest {
 
     @Test
+    public void testReserveKeepsCurrentStateAndResetTargetStableForStandardStateManager() {
+        StandardStateManager<String> manager = new StandardStateManager<>(new String[]{"A", "B", "C", "D"});
+
+        assertTrue(manager.switchTo("C"));
+        assertEquals("C", manager.current());
+
+        manager.reserve();
+
+        assertEquals("C", manager.current());
+
+        manager.reset();
+
+        assertEquals("A", manager.current());
+    }
+
+    @Test
+    public void testReservePreservesOriginalDefaultForUnidirectionalManager() {
+        DefaultUnidirectionalStateManager<String> manager =
+                new DefaultUnidirectionalStateManager<>(new String[]{"A", "B", "C"});
+
+        assertTrue(manager.switchTo("B"));
+        manager.reserve();
+
+        assertEquals("B", manager.current());
+        assertTrue(manager.switchTo("A"));
+        assertEquals("A", manager.current());
+        assertFalse(manager.switchTo("C"));
+    }
+
+    @Test
     public void testStandardStateManagerBasicOperationsAndHelpers() {
         StandardStateManager<String> manager = new StandardStateManager<>(new String[]{"A", "B", "C"});
         AtomicInteger counter = new AtomicInteger();

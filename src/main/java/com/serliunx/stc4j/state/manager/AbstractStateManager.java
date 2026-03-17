@@ -1,6 +1,7 @@
 package com.serliunx.stc4j.state.manager;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -106,6 +107,20 @@ public abstract class AbstractStateManager<S> implements StateManager<S> {
 	@Override
 	public int size() {
 		return stateList.size();
+	}
+
+	@Override
+	public void reserve() {
+		try {
+			writeLock.lock();
+			S current = current();
+			S defaultState = get(getDefault());
+			Collections.reverse(stateList);
+			setDefault(indexOf(defaultState));
+			updateCurrentIndex(indexOf(current));
+		} finally {
+			writeLock.unlock();
+		}
 	}
 
 	/**

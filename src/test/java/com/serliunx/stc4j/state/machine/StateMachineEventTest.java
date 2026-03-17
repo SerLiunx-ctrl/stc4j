@@ -124,6 +124,33 @@ public class StateMachineEventTest {
     }
 
     @Test
+    public void testConcurrentStateMachineReserveKeepsCurrentStateAndResetTargetStable() throws Exception {
+        ConcurrentStateMachine<String> machine = StateMachineBuilder.from(new String[]{"A", "B", "C"})
+                .withInitial("B")
+                .async(false)
+                .concurrent()
+                .build();
+
+        try {
+            assertEquals("B", machine.current());
+            assertTrue(machine.switchTo("C", false));
+            assertEquals("C", machine.current());
+
+            machine.reserve();
+
+            assertEquals("C", machine.current());
+            assertTrue(machine.compareAndSet("C", "A", false));
+            assertEquals("A", machine.current());
+
+            machine.reset(false);
+
+            assertEquals("B", machine.current());
+        } finally {
+            machine.close();
+        }
+    }
+
+    @Test
     public void testCloseShutsDownProvidedExecutorService() throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         StateMachine<String> machine = StateMachineBuilder.from(new String[]{"A", "B"})

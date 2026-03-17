@@ -5,12 +5,15 @@ import com.serliunx.stc4j.util.Pair;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
 /**
- * 并发型状态机的默认实现, 内置的状态序列切换使用CAS实现.
+ * 并发型状态机的默认实现。
+ * 状态索引的切换使用 CAS，而状态列表结构变化（如 reserve）由独立的读写锁协调。
  *
  * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
  * @version 1.0.4
@@ -19,9 +22,12 @@ import java.util.function.Consumer;
 public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> implements ConcurrentStateMachine<S> {
 
     /**
-     * 当前状态
+     * 当前状态索引。
      */
     private final AtomicInteger index = new AtomicInteger(0);
+    private final ReentrantReadWriteLock structuralLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock.ReadLock structuralReadLock = structuralLock.readLock();
+    private final ReentrantReadWriteLock.WriteLock structuralWriteLock = structuralLock.writeLock();
 
     public DefaultConcurrentStateMachine(List<S> stateList,
                                   Map<S, List<StateHandlerWrapper<S>>> entryHandlers,
@@ -48,106 +54,186 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
 
     @Override
     public boolean compareAndSet(S expectedValue, S newValue, boolean invokeHandlers) {
-        int current = indexOf(expectedValue);
-        int newIndex = indexOf(newValue);
-        if (current == -1 || newIndex == -1)
-            return false;
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            int current = indexOf(expectedValue);
+            int newIndex = indexOf(newValue);
+            if (current == -1 || newIndex == -1)
+                return false;
 
-        boolean result = index.compareAndSet(current, newIndex);
-        if (result && invokeHandlers && current != newIndex) {
-            invokeHandlers(get(current), get(newIndex));
+            if (!index.compareAndSet(current, newIndex))
+                return false;
+
+            transition = new Transition<>(get(current), get(newIndex));
+        } finally {
+            structuralReadLock.unlock();
         }
 
-        return result;
+        if (invokeHandlers && !transition.noop()) {
+            invokeHandlers(transition.fromState, transition.toState);
+        }
+
+        return true;
+    }
+
+    @Override
+    public void reserve() {
+        try {
+            structuralWriteLock.lock();
+            super.reserve();
+        } finally {
+            structuralWriteLock.unlock();
+        }
     }
 
     /**
-     * 使用CAS不断尝试将当前状态重置回默认值(0)
+     * 使用 CAS 将当前状态重置为默认状态。
      *
-     * @param invokeHandlers    是否唤醒状态处理器
+     * @param invokeHandlers 是否触发状态处理器
      */
     @Override
     public void reset(boolean invokeHandlers) {
-        if (isDefault())
-            return;
-        Transition transition = exchangeToTarget(getDefault());
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            if (isDefault())
+                return;
+            transition = exchangeToTarget(getDefault());
+        } finally {
+            structuralReadLock.unlock();
+        }
+
         if (transition != null && invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+            invokeHandlers(transition.fromState, transition.toState);
         }
     }
 
     @Override
     public boolean switchTo(S state, boolean invokeHandlers) {
-        int i = indexOf(state);
-        if (i == -1 ||
-                i == index.get()) {
-            return false;
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            int i = indexOf(state);
+            if (i == -1 || i == index.get()) {
+                return false;
+            }
+            transition = exchangeToTarget(i);
+            if (transition == null) {
+                return false;
+            }
+        } finally {
+            structuralReadLock.unlock();
         }
-        Transition transition = exchangeToTarget(i);
-        if (transition == null) {
-            return false;
-        }
+
         if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+            invokeHandlers(transition.fromState, transition.toState);
         }
         return true;
     }
 
     @Override
     public S switchPrevAndGet(boolean invokeHandlers) {
-        Transition transition = exchangeToPrev();
-        if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToPrev();
+        } finally {
+            structuralReadLock.unlock();
         }
-        return get(transition.toIndex);
+
+        if (invokeHandlers) {
+            invokeHandlers(transition.fromState, transition.toState);
+        }
+        return transition.toState;
     }
 
     @Override
     public S getAndSwitchPrev(boolean invokeHandlers) {
-        Transition transition = exchangeToPrev();
-        if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToPrev();
+        } finally {
+            structuralReadLock.unlock();
         }
-        return get(transition.fromIndex);
+
+        if (invokeHandlers) {
+            invokeHandlers(transition.fromState, transition.toState);
+        }
+        return transition.fromState;
     }
 
     @Override
     public void switchPrev(boolean invokeHandlers) {
-        Transition transition = exchangeToPrev();
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToPrev();
+        } finally {
+            structuralReadLock.unlock();
+        }
+
         if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+            invokeHandlers(transition.fromState, transition.toState);
         }
     }
 
     @Override
     public S switchNextAndGet(boolean invokeHandlers) {
-        Transition transition = exchangeToNext();
-        if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToNext();
+        } finally {
+            structuralReadLock.unlock();
         }
-        return get(transition.toIndex);
+
+        if (invokeHandlers) {
+            invokeHandlers(transition.fromState, transition.toState);
+        }
+        return transition.toState;
     }
 
     @Override
     public S getAndSwitchNext(boolean invokeHandlers) {
-        Transition transition = exchangeToNext();
-        if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToNext();
+        } finally {
+            structuralReadLock.unlock();
         }
-        return get(transition.fromIndex);
+
+        if (invokeHandlers) {
+            invokeHandlers(transition.fromState, transition.toState);
+        }
+        return transition.fromState;
     }
 
     @Override
     public void switchNext(boolean invokeHandlers) {
-        Transition transition = exchangeToNext();
+        Transition<S> transition;
+        try {
+            structuralReadLock.lock();
+            transition = exchangeToNext();
+        } finally {
+            structuralReadLock.unlock();
+        }
+
         if (invokeHandlers) {
-            invokeHandlers(get(transition.fromIndex), get(transition.toIndex));
+            invokeHandlers(transition.fromState, transition.toState);
         }
     }
 
     @Override
     public S current() {
-        return get(index.get());
+        try {
+            structuralReadLock.lock();
+            return get(index.get());
+        } finally {
+            structuralReadLock.unlock();
+        }
     }
 
     @Override
@@ -156,21 +242,18 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
     }
 
     /**
-     * 是否为默认状态
+     * 当前是否处于默认状态。
      *
-     * @return 默认状态时返回真, 否则返回假.
+     * @return 当前索引等于默认索引时返回 {@code true}
      */
     protected boolean isDefault() {
         return index.get() == getDefault();
     }
 
     /**
-     * 移动下标至上一个状态
-     * <p>
-     *     使用CAS一直尝试, 直到成功
-     * </p>
+     * 使用 CAS 将当前索引切换到上一个状态，直到成功为止。
      */
-    protected Transition exchangeToPrev() {
+    protected Transition<S> exchangeToPrev() {
         final int size = size();
         int currentValue;
         int newValue;
@@ -178,16 +261,13 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
             currentValue = index.get();
             newValue = currentValue == 0 ? size - 1 : currentValue - 1;
         } while (!index.compareAndSet(currentValue, newValue));
-        return new Transition(currentValue, newValue);
+        return new Transition<>(get(currentValue), get(newValue));
     }
 
     /**
-     * 移动下标至下一个状态
-     * <p>
-     *     使用CAS一直尝试, 直到成功
-     * </p>
+     * 使用 CAS 将当前索引切换到下一个状态，直到成功为止。
      */
-    protected Transition exchangeToNext() {
+    protected Transition<S> exchangeToNext() {
         final int size = size();
         int currentValue;
         int newValue;
@@ -195,18 +275,15 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
             currentValue = index.get();
             newValue = currentValue == size - 1 ? 0 : currentValue + 1;
         } while (!index.compareAndSet(currentValue, newValue));
-        return new Transition(currentValue, newValue);
+        return new Transition<>(get(currentValue), get(newValue));
     }
 
     /**
-     * 切换到指定状态值
-     * <p>
-     *     使用CAS一直尝试, 直到成功
-     * </p>
+     * 使用 CAS 将当前索引切换到目标索引，直到成功为止。
      *
-     * @param target    目标值
+     * @param target 目标索引
      */
-    protected Transition exchangeToTarget(int target) {
+    protected Transition<S> exchangeToTarget(int target) {
         int currentValue;
         while (true) {
             currentValue = index.get();
@@ -214,19 +291,23 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
                 return null;
             }
             if (index.compareAndSet(currentValue, target)) {
-                return new Transition(currentValue, target);
+                return new Transition<>(get(currentValue), get(target));
             }
         }
     }
 
-    protected static final class Transition {
+    protected static final class Transition<S> {
 
-        private final int fromIndex;
-        private final int toIndex;
+        private final S fromState;
+        private final S toState;
 
-        private Transition(int fromIndex, int toIndex) {
-            this.fromIndex = fromIndex;
-            this.toIndex = toIndex;
+        private Transition(S fromState, S toState) {
+            this.fromState = fromState;
+            this.toState = toState;
+        }
+
+        private boolean noop() {
+            return Objects.equals(fromState, toState);
         }
     }
 }

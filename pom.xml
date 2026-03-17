@@ -10,7 +10,7 @@
 
     <name>stc4j</name>
     <description>a simple java tools collection.</description>
-    <url>https://github.com/serliunx/stc4j</url>
+    <url>https://github.com/SerLiunx-ctrl/stc4j</url>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -36,7 +36,7 @@
         <developer>
             <id>serliunx</id>
             <name>serliunx</name>
-            <email>root@serliunx.com</email>
+            <email>serliunx@yeah.net</email>
         </developer>
     </developers>
 
