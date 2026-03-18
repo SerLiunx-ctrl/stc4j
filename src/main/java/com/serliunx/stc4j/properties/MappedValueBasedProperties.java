@@ -23,6 +23,9 @@ public abstract class MappedValueBasedProperties implements ValueBasedProperties
 
     /**
      * 获取配置信息
+     *
+     * @param key 配置键
+     * @return 配置信息
      */
     protected final String getProperty(String key) {
         return values.get(key);

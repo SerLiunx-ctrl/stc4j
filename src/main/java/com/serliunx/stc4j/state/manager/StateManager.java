@@ -41,7 +41,7 @@ public interface StateManager<S> {
 	/**
 	 * 反转内置的状态列表
 	 * <p>
-	 * A-B-C-D-E -> E-D-C-B-A
+	 * A-B-C-D-E 至 E-D-C-B-A
 	 */
 	void reserve();
 

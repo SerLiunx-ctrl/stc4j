@@ -25,6 +25,8 @@ public final class AbortRejectionHandler implements MergedRejectedExecutionHandl
 
     /**
      * 获取实例
+     *
+     * @return 实例
      */
     public static AbortRejectionHandler instance() {
         return INSTANCE;

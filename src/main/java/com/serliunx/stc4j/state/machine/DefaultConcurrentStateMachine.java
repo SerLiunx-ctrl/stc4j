@@ -252,6 +252,8 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
 
     /**
      * 使用 CAS 将当前索引切换到上一个状态，直到成功为止。
+     *
+     * @return 切换结果
      */
     protected Transition<S> exchangeToPrev() {
         final int size = size();
@@ -266,6 +268,8 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
 
     /**
      * 使用 CAS 将当前索引切换到下一个状态，直到成功为止。
+     *
+     * @return 切换结果
      */
     protected Transition<S> exchangeToNext() {
         final int size = size();
@@ -282,6 +286,7 @@ public class DefaultConcurrentStateMachine<S> extends AbstractStateMachine<S> im
      * 使用 CAS 将当前索引切换到目标索引，直到成功为止。
      *
      * @param target 目标索引
+     * @return 切换结果
      */
     protected Transition<S> exchangeToTarget(int target) {
         int currentValue;

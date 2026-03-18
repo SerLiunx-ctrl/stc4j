@@ -24,6 +24,8 @@ public final class CallerRunsRejectionHandler implements MergedRejectedExecution
 
     /**
      * 获取实例
+     *
+     * @return 实例
      */
     public static CallerRunsRejectionHandler instance() {
         return INSTANCE;

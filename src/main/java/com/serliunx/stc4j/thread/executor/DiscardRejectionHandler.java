@@ -24,6 +24,8 @@ public final class DiscardRejectionHandler implements MergedRejectedExecutionHan
 
     /**
      * 获取实例
+     *
+     * @return 实例
      */
     public static DiscardRejectionHandler instance() {
         return INSTANCE;

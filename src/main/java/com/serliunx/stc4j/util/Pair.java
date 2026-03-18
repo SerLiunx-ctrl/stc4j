@@ -147,8 +147,8 @@ public interface Pair<L, R> {
     /**
      * 不可变的键值对默认实现
      *
-     * @param <L>
-     * @param <R>
+     * @param <L> 左值
+     * @param <R> 右值
      */
     final class ImmutablePair<L, R> extends DefaultImpl<L, R> {
 
