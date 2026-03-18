@@ -17,14 +17,14 @@
 <dependency>
     <groupId>com.serliunx</groupId>
     <artifactId>stc4j</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```gradle
-implementation("com.serliunx:stc4j:1.0.3")
+implementation("com.serliunx:stc4j:1.0.4")
 ```
 
 GAV 坐标如下：
@@ -32,7 +32,7 @@ GAV 坐标如下：
 ```text
 groupId:    com.serliunx
 artifactId: stc4j
-version:    1.0.3
+version:    1.0.4
 ```
 
 ## 模块目录
