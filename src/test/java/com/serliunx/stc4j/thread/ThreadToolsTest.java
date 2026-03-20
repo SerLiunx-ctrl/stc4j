@@ -65,9 +65,9 @@ public class ThreadToolsTest {
             log.info("hello~");
         });
 
-        TimeUnit.SECONDS.sleep(2);
+        TimeUnit.SECONDS.sleep(1);
         System.out.println(rte);
 
-        TimeUnit.SECONDS.sleep(3);
+        TimeUnit.SECONDS.sleep(1);
     }
 }
