@@ -1,6 +1,5 @@
 package com.serliunx.stc4j.state.machine;
 
-import com.serliunx.stc4j.state.external.FlexibleStateMachine;
 import com.serliunx.stc4j.state.handler.StateHandler;
 
 import java.util.concurrent.Executor;
@@ -8,14 +7,13 @@ import java.util.concurrent.Executor;
 /**
  * 状态机之状态事件注册
  * <p>
- * 注册状态切换时的事件, 一般用于状态机构建和支持动态调整的状态机{@link FlexibleStateMachine};
+ * 注册状态切换时的事件, 一般用于状态机构建;
  * 当然实际不仅于此, 任何相关的都可以使用.
  * </p>
  *
  * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
  * @version 1.0.4
  * @since 2026/3/16
- * @see FlexibleStateMachine
  */
 public interface StateEventRegistry<S> {
 

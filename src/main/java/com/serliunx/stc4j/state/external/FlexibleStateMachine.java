@@ -13,7 +13,9 @@ import java.util.List;
  * @author <a href="mailto:serliunx@yeah.net">SerLiunx</a>
  * @version 1.0.4
  * @since 2026/3/16
+ * @deprecated 不再使用.
  */
+@Deprecated
 public interface FlexibleStateMachine<S> extends StateMachine<S>, StateEventRegistry<S> {
 
     /**
