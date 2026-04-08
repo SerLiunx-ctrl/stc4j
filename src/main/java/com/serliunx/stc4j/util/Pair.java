@@ -173,7 +173,7 @@ public interface Pair<L, R> {
      * @param <L>   左值类型
      * @param <R>   右值类型
      */
-    class DefaultImpl<L, R>  implements Pair<L, R> {
+    class DefaultImpl<L, R> implements Pair<L, R> {
 
         private L left;
         private R right;

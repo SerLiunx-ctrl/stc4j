@@ -3,7 +3,6 @@ package com.serliunx.stc4j.state.machine;
 import com.serliunx.stc4j.state.handler.StateHandler;
 import com.serliunx.stc4j.state.handler.StateHandlerProcessParams;
 import com.serliunx.stc4j.state.handler.StateHandlerWrapper;
-import com.serliunx.stc4j.util.Pair;
 
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -16,26 +15,6 @@ import java.util.concurrent.Executor;
  * @since 2026/3/16
  */
 public final class HandlerInvocationDelegate {
-
-    /**
-     * 触发处理器
-     *
-     * @param context   状态机上下文
-     * @param from	    源状态
-     * @param to	    目的状态
-     * @param <S> 状态类型
-     */
-    public static <S> void invokeHandlers(StateMachineContext<S> context, S from, S to) {
-        // 触发离开处理器
-        doInvokeHandlers(context, context.leaveHandlers.get(from), from, to);
-
-        // 触发进入处理器
-        doInvokeHandlers(context, context.entryHandlers.get(to), from, to);
-
-        // 触发交换处理器
-        final Pair<S, S> key = Pair.ofImmutable(from, to);
-        doInvokeHandlers(context, context.exchangeHandlers.get(key), from, to);
-    }
 
     /**
      * 触发逻辑
