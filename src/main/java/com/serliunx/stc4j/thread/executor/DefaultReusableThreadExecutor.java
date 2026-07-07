@@ -121,7 +121,11 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
     public void shutdown() {
         if (getStatus() >= STATUS_SHUTDOWN)
             return;
+        int oldStatus = status.get();
         status.set(STATUS_SHUTDOWN);
+        if (oldStatus < STATUS_RUNNING && queue.isEmpty()) {
+            thread.interrupt();
+        }
     }
 
     @Override
@@ -155,8 +159,28 @@ public class DefaultReusableThreadExecutor implements ReusableThreadExecutor {
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        // TODO
-        return false;
+        long nanos = unit.toNanos(timeout);
+        if (isTerminated()) {
+            return true;
+        }
+        if (nanos <= 0) {
+            return false;
+        }
+
+        final long deadline = System.nanoTime() + nanos;
+        while (!isTerminated()) {
+            Thread t = thread;
+            if (t == null) {
+                return isTerminated();
+            }
+
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) {
+                return isTerminated();
+            }
+            NANOSECONDS.timedJoin(t, remaining);
+        }
+        return true;
     }
 
     @Override

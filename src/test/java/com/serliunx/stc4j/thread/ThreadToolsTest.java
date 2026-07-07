@@ -12,8 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * 线程相关扩展测试
@@ -69,5 +74,51 @@ public class ThreadToolsTest {
         System.out.println(rte);
 
         TimeUnit.SECONDS.sleep(1);
+    }
+
+    @Test
+    public void testReusableThreadExecutorAwaitTerminationAfterShutdown() throws Exception {
+        ReusableThreadExecutor rte = new DefaultReusableThreadExecutor(new ArrayBlockingQueue<>(16),
+                new DefaultIndexCountingThreadFactory("await-thread-%s", 1), DiscardRejectionHandler.instance());
+
+        rte.shutdown();
+
+        assertTrue(rte.awaitTermination(1, TimeUnit.SECONDS));
+        assertTrue(rte.isTerminated());
+    }
+
+    @Test
+    public void testReusableThreadExecutorAwaitTerminationTimeout() throws Exception {
+        ReusableThreadExecutor rte = new DefaultReusableThreadExecutor(new ArrayBlockingQueue<>(16),
+                new DefaultIndexCountingThreadFactory("await-timeout-thread-%s", 1), DiscardRejectionHandler.instance());
+
+        assertFalse(rte.awaitTermination(10, TimeUnit.MILLISECONDS));
+
+        rte.shutdownNow();
+        assertTrue(rte.awaitTermination(1, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testReusableThreadExecutorShutdownDoesNotInterruptRunningTask() throws Exception {
+        ReusableThreadExecutor rte = new DefaultReusableThreadExecutor(new ArrayBlockingQueue<>(16),
+                new DefaultIndexCountingThreadFactory("await-running-thread-%s", 1), DiscardRejectionHandler.instance());
+        CountDownLatch started = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean(false);
+
+        rte.execute(() -> {
+            started.countDown();
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                interrupted.set(true);
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        assertTrue(started.await(1, TimeUnit.SECONDS));
+        rte.shutdown();
+
+        assertTrue(rte.awaitTermination(1, TimeUnit.SECONDS));
+        assertFalse(interrupted.get());
     }
 }
